@@ -1,22 +1,33 @@
 import geni.portal as portal
-import geni.rspec.pg as rspec
+import geni.rspec.pg as pg
+import geni.rspec.igext as IG
 
-# Create request object to start building RSpec.
-request = portal.context.makeRequestRSpec()
+pc = portal.Context()
+request = pc.makeRequestRSpec()
 
-# Create a XenVM
-node = request.XenVM("node")
-node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops:UBUNTU18-64-STD"
-node.routable_control_ip = "true"
+tourDescription = \
+"""
+This profile provides a two-node set to study SSO. One node will be the LDAP server, and the other node is a client who is to be authenticated using LDAP. 
+"""
 
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command="sudo apt update"))
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command="sudo apt install -y apache2"))
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command='sudo ufw allow in "Apache Full"'))
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command='sudo systemctl status apache2'))
-# Print the RSpec enclosing page
-portal.context.printRequestRSpec()
+tour = IG.Tour()
+tour.Description(IG.Tour.TEXT,tourDescription)
+request.addTour(tour)
+prefixForIP = "192.168.1."
+link = request.LAN("lan")
 
+for i in range(2):
+  if i == 0:
+    node = request.XenVM("ldapserver")    
+  else:
+    node = request.XenVM("ldapclient")
+   
+  node.routable_control_ip = "true"  
+  node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops:UBUNTU18-64-STD"
+  iface = node.addInterface("if" + str(i))
+  iface.component_id = "eth1"
+  iface.addAddress(pg.IPv4Address(prefixForIP + str(i + 1), "255.255.255.0"))
+  link.addInterface(iface)
+  
+# Print the RSpec to the enclosing page.
+pc.printRequestRSpec(request)
