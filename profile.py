@@ -1,22 +1,27 @@
 import geni.portal as portal
-import geni.rspec.pg as rspec
+import geni.rspec.pg as pg
+import geni.rspec.igext as IG
 
-# Create request object to start building RSpec.
-request = portal.context.makeRequestRSpec()
+pc = portal.Context()
+request = pc.makeRequestRSpec()
 
-# Create a XenVM
-node = request.XenVM("node")
+tourDescription = \
+"""
+This profile provides the template for a compute node with Docker installed on Ubuntu 18.04
+"""
+
+#
+# Setup the Tour info with the above description and instructions.
+#  
+tour = IG.Tour()
+tour.Description(IG.Tour.TEXT,tourDescription)
+request.addTour(tour)
+
+node = request.XenVM("head")
+node.cores = 4
+node.ram = 8192
+node.routable_control_ip = "true" 
 node.disk_image = "urn:publicid:IDN+emulab.net+image+emulab-ops:UBUNTU18-64-STD"
-node.routable_control_ip = "true"
-
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command="sudo apt update"))
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command="sudo apt install -y apache2"))
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command='sudo ufw allow in "Apache Full"'))
-node.addService(rspec.Execute(shell="/bin/sh",
-                              command='sudo systemctl status apache2'))
-# Print the RSpec enclosing page
-portal.context.printRequestRSpec()
-
+node.addService(pg.Execute(shell="sh", command="sudo bash /local/repository/install_docker.sh"))
+  
+pc.printRequestRSpec(request)
